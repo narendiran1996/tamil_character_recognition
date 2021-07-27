@@ -1,0 +1,215 @@
+<html>
+	<head>
+		<title> Tamil Character Recognition </title>    		
+	</head>
+	
+	<body>
+		
+		<div class="container" style="float:left;">
+			<div>
+				<canvas id="canvasID" width="400" height="400" style="top:10%;left:10%;border:2px solid;"></canvas>
+			</div>
+			<div style="margin-bottom:10px;"></div>
+			<div class="container">
+				<div style="float:centre;padding-right:150px;padding-left:160px;">
+					<input type="button" value="Clear" id="clr" size="23" onclick="erase()">
+				</div>
+				
+			</div>
+			
+			<div id="divElementContainer" style="display: none;margin-top:50px;">
+			The character is <b><span id="tamilChar"></span></b>
+			</br>
+			<span id="T0"></span> - <span id="T0per"></span> %
+			</br>
+			<span id="T1"></span> - <span id="T1per"></span> %
+			</br>
+			<span id="T2"></span> - <span id="T2per"></span> %
+			</div>
+
+		</div>
+		
+
+		
+		<script type="text/javascript">
+
+			var canvas;
+			var ctx;
+			var divElement =  document.getElementById("divElementContainer");
+			var prevX = 0;
+			var currX = 0;
+			var prevY = 0;
+			var currY = 0;
+			var paths = []; // recording paths
+			var paintFlag = false;
+			var color = "black";
+			var lineWidth = 10;
+
+			var clearBeforeDraw = false;
+			
+			divElement.style.display = "none";	
+			function erase()
+			{
+				divElement.style.display = "none";	
+				ctx.clearRect(0, 0, canvas.width, canvas.height);
+			}
+
+
+			function draw(ctx, color, lineWidth, x1, y1, x2, y2) 
+			{
+				ctx.beginPath();
+				ctx.strokeStyle = color;
+				ctx.lineWidth = lineWidth;
+				ctx.lineCap = 'round';
+				ctx.lineJoin = 'round';
+				ctx.moveTo(x1, y1);
+				ctx.lineTo(x2, y2);
+				ctx.stroke();
+				ctx.closePath();
+			}
+			
+			function findxy(res, e)
+			{
+				if (res == 'down') 
+				{
+					
+					if (clearBeforeDraw == true)
+					{
+						ctx.clearRect(0,0,canvas.width,canvas.height);
+						paths = [];
+						clearBeforeDraw = false;
+					}
+
+					if (e.pageX != undefined && e.pageY != undefined)
+					{
+						currX = e.pageX-canvas.offsetLeft;
+						currY = e.pageY-canvas.offsetTop;
+					}
+					else
+					{
+						currX = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft - canvas.offsetLeft;
+						currY = e.clientY + document.body.scrollTop + document.documentElement.scrollTop - canvas.offsetTop;
+					}
+					//draw a circle
+					ctx.beginPath();
+					ctx.lineWidth = 1;
+					ctx.arc(currX,currY,lineWidth/2,0,2*Math.PI);
+					ctx.stroke();
+					ctx.closePath();
+					ctx.fill();
+
+					paths.push([[currX], [currY]]);
+					paintFlag = true;
+				}
+				
+				if (res == "out") 
+				{
+					paintFlag = false;
+					
+					//console.log(paths);
+				}
+				if (res == "up") 
+				{
+					paintFlag = false;
+					
+					recognize();
+				}
+
+				if (res == 'move') 
+				{
+					if (paintFlag)
+					{
+						// draw a line to previous point
+						prevX = currX;
+						prevY = currY;
+						if (e.pageX != undefined && e.pageY != undefined)
+						{
+							currX = e.pageX-canvas.offsetLeft;
+							currY = e.pageY-canvas.offsetTop;
+						}
+						else
+						{
+							currX = e.clientX + document.body.scrollLeft + document.documentElement.scrollLeft - canvas.offsetLeft;
+							currY = e.clientY + document.body.scrollTop + document.documentElement.scrollTop - canvas.offsetTop;
+						}
+						currPath = paths[paths.length-1];
+						currPath[0].push(currX);
+						currPath[1].push(currY);
+						paths[paths.length-1] = currPath;
+						draw(ctx, color, lineWidth, prevX, prevY, currX, currY);
+					}
+				}
+			}
+			function init() 
+			{
+				
+				canvas = document.getElementById('canvasID');
+				ctx = canvas.getContext("2d");
+
+				canvas.addEventListener("mousemove", function (e) { findxy('move', e) }, false);					
+				canvas.addEventListener("mousedown", function (e) { findxy('down', e) }, false);
+				canvas.addEventListener("mouseup", function (e) {  findxy('up', e) }, false);
+				canvas.addEventListener("mouseout", function (e) { findxy('out', e) }, false);
+			}
+			
+			init();
+			
+			function imageDataToGrayscale(imgData)
+			{
+				var grayscaleImg = [];
+				for (var y = 0; y < imgData.height; y++)
+				{
+					grayscaleImg[y]=[];
+					for (var x = 0; x < imgData.width; x++)
+					{
+						var offset = y * 4 * imgData.width + 4 * x;
+						var alpha = imgData.data[offset+3];
+						// weird: when painting with stroke, alpha == 0 means white;
+						// alpha > 0 is a grayscale value; in that case I simply take the R value
+						if (alpha == 0)
+						{
+							imgData.data[offset] = 255;
+							imgData.data[offset+1] = 255;
+							imgData.data[offset+2] = 255;
+						}
+						imgData.data[offset+3] = 255;
+						// simply take red channel value. Not correct, but works for
+						// black or white images.
+						grayscaleImg[y][x] = imgData.data[y*4*imgData.width + x*4 + 0] / 255;
+					}
+				}
+				return grayscaleImg;
+			}
+
+			function recognize()
+			{
+				var imgData = ctx.getImageData(0, 0, 400, 400);
+				
+				var xhr = new XMLHttpRequest();
+				xhr.open("POST", "/postmethod", true);
+				xhr.setRequestHeader('Content-Type', 'application/json');
+				xhr.send(imageDataToGrayscale(imgData));
+				
+				xhr.onreadystatechange = function() 
+				{
+					if (this.readyState == 4 && this.status == 200) 
+					{
+						var responseText = this.responseText;
+						var responseTextArray = responseText.split(',');
+						console.log(responseTextArray);
+
+						document.getElementById("tamilChar").innerHTML = responseTextArray[0];
+						document.getElementById("T0").innerHTML = responseTextArray[0];
+						document.getElementById("T1").innerHTML = responseTextArray[1];
+						document.getElementById("T2").innerHTML = responseTextArray[2];
+						document.getElementById("T0per").innerHTML = responseTextArray[3];
+						document.getElementById("T1per").innerHTML = responseTextArray[4];
+						document.getElementById("T2per").innerHTML = responseTextArray[5];
+						divElement.style.display = "block";
+					}
+				};
+			}
+		</script>	
+	</body>
+</html>
+
