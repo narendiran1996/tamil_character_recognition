@@ -1,5 +1,8 @@
 # tamil_character_recognition
 
+
+
+
 &emsp; A system for recognizing Tamil Handwritten characters in real time.
 
 
@@ -26,7 +29,7 @@ The characters available can be seen below,
 
 - First, bouding box of the characters are obtained and using the bounding box, the white space around the chracters are trimmed off.
 
-    {% highlight python %}
+    ```python
     def bbox(img1):
         img = 1 - img1
         rows = np.any(img, axis=1)
@@ -37,33 +40,33 @@ The characters available can be seen below,
 
     rmin, rmax, cmin, cmax = bbox(img)
     trimmedImg = img[rmin:rmax, cmin:cmax]
-    {% endhighlight %}
+    ```
 
 - The `trimmedImg` are of different resolutions, due to handwritten nature. Hence, they are made into a common resolution of 100 x 100 (average resolution).
 
-    {% highlight python %}
+    ```python
     resizedImg = cv2.resize(trimmedImg, dsize=(100, 100))
-    {% endhighlight %}
+    ```
 
 - Extra padding is added to the `resizedImg` to make the resolution 128 x128.
 
-    {% highlight python %}
+    ```python
     paddedImg = np.ones((128,128))
     paddedImg[14:114,14:114] = resizedImg
-    {% endhighlight %}
+    ```
 
 
 3. The labels for each of the image are obtained from the file name.
-    {% highlight python %}
+    ```python
     label = int(fileName[:3])
-    {% endhighlight %}
+    ```
 4. Finally, the images and labels are stored as pickle objects.
-    {% highlight python %}
+    ```python
     filIm = open('./image_ALL_128x128.obj', 'wb')
     pickle.dump(images, filIm)
     filLab = open('./label_ALL_128x128.obj', 'wb')
     pickle.dump(labels, filLab)
-    {% endhighlight %}
+    ```
 
 The complete preprocessing code is available in [TamilCharacterRecognistion_Preprocessing.ipynb](https://github.com/narendiran1996/tamil_character_recognition/blob/main/TamilCharacterRecognistion_Preprocessing.ipynb).
 
@@ -110,7 +113,7 @@ to get the final output.
 
 The architectural description using Keras can be seen below:
 
-{% highlight python %}
+```python
 model = Sequential()
 model.add(Conv2D(64, (5, 5), input_shape=(w,h,1), activation='relu'))
 model.add(MaxPooling2D(pool_size=(2, 2)))
@@ -166,7 +169,7 @@ model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accur
 # Trainable params: 275,580
 # Non-trainable params: 0
 # _________________________________________________________________
-{% endhighlight %}
+```
 
 ## Training and Testing
 &emsp; The dataset is split into training and testing data. About 85% of the total data i.e., 70k is
@@ -176,27 +179,27 @@ As the splitting of data increases for the Training, the performance efficiency 
 One hot encoding is used for label encoding.
 The 156 character labels will be assigned to a 156x1 array.
 
-{% highlight python %}
+```python
 X_train, X_test, y_train, y_test = train_test_split(images, y_labels, test_size=0.33, random_state=42)
 y_labels=to_categorical(labels)
-{% endhighlight %}
+```
 
 The training is done with a total of 70,498 data samples with 20 epochs. Each epochs consist of batch
 size of 100. The learning is done using adaptive learning rate with loss function of Categorical Cross Entropy.
 
-{% highlight python %}
+```python
 model.fit(X_train, y_train, validation_data=(X_test, y_test), epochs=20, batch_size=100, verbose=1)
-{% endhighlight %}
+```
 
 The training and test accuracty is found to be 98.3 % and 92.29 % respectively.
 
 
 
 The training model is then saved to be used in real time recognition.
-{% highlight python %}
+```python
 model.save("./tamilALLEzhuthukalKeras_Model.h5")
 print("Saved model to disk")
-{% endhighlight %}
+```
 
 The process of model creation and training can be seen in [TamilCharacterRecognistion_Training.ipynb](https://github.com/narendiran1996/tamil_character_recognition/blob/main/TamilCharacterRecognistion_Training.ipynb).
 
@@ -211,3 +214,4 @@ Then the recognized character will be visible below the canvas.
 <img src="https://raw.githubusercontent.com/narendiran1996/tamil_character_recognition/main/Outputs/Output2.png" width="31%">
 <img src="https://raw.githubusercontent.com/narendiran1996/tamil_character_recognition/main/Outputs/Output3.png" width="31%">
 </p>
+
